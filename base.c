@@ -42,5 +42,6 @@ for(;num<nn;num+=2)
 printf("Hi ha %d primers\n",pp-1);
 printf("Darrer primer trobat %d\n",p[pp-1]);
 //for(i=0;i<pp;i++) printf("%d\n",p[i]);
+//for(i=0;i<pp;i++) printf("%d\n", i);
 exit(0);
 }

@@ -2,47 +2,47 @@
 #include <stdio.h>
 #include <assert.h>
 #include <pthread.h>
+#include <stdatomic.h>
 
 #define N 100000000
 #define INI 1500
 #define MAX_THREADS 256
 
 int p[N/10];
-int i, nn,pp;
+int i, nn, pp;
 int numThreads;
-pthread_mutex_t lock;
+//pthread_mutex_t lock;
 
 void *find_primes_in_range(void *arg)
 {
   int thread_id = *(int *)arg;
-  int range_size = (nn - INI + numThreads - 1) / numThreads;//nn / numThreads;
+  int range_size = (nn - INI + numThreads - 1) / numThreads;
   int start = INI + thread_id * range_size;
   int end = (thread_id == numThreads - 1) ? nn : start + range_size;
 
-  int *local_p = malloc(sizeof(int) * (nn / numThreads));
+  int block_size = (N/10 + numThreads - 1) / numThreads;
+  int newPPindex = thread_id * block_size;
   int local_pp = 0;
-
-  for(int num = start;num<end;num+=2) 
+  for(int num = start;num<end;num+=2)
   {
     int div = 0; // No divisible
     for (i=1; p[i]*p[i] <= num && !div;i++)
       div = div || !(num % p[i]);
-    if (!div) local_p[local_pp++]=num;
-  }
-
-  pthread_mutex_lock(&lock);
-  for (int x = 0; x < local_pp; x++) {
-    if(pp < N/10) {
-      p[pp++] = local_p[x];
-    } else {
-      printf("No se puede acceder al array");
+    if (!div){
+      if (newPPindex < (thread_id + 1) * block_size) {
+        p[newPPindex++] = num;
+        local_pp++;
+      }
     }
   }
-  printf("PP: %d\n", pp-1);
-  pthread_mutex_unlock(&lock);
-
-  free(local_p);
+  // Suma de los primos encontrados por este hilo
+  __sync_fetch_and_add(&pp, local_pp);
+  
   pthread_exit(NULL);
+}
+
+int compare(const void *a, const void *b) {
+    return (*(int *)a - *(int *)b);
 }
 
 int main(int na,char* arg[])
@@ -59,7 +59,7 @@ numThreads = atoi(arg[2]);
 if (numThreads > MAX_THREADS || 256 % numThreads != 0 || numThreads % 2 != 0) assert("![*] Numero de threads demasiado grande -> Max 256" == 0);
 //assert(nn<=N);
 
-pthread_mutex_init(&lock, NULL);
+//pthread_mutex_init(&lock, NULL);
 
 printf("Tots els primers fins a %d\n",nn);
 
@@ -75,8 +75,6 @@ while (pp < INI)
   if (p[i]*p[i] > num) p[pp++]=num;
   num += 2;
 }
-printf("PP MAIN: %d\n", pp-1);
-
 
  /* Crea todos los hilos, uno a uno */
 for (i = 0; i < numThreads; i++) {
@@ -93,11 +91,23 @@ for (i = 0; i < numThreads; i++) {
 	assert(!result);
 	printf("MAIN: El hilo %d ha terminado.\n", i);
 }
-pthread_mutex_destroy(&lock);
+//pthread_mutex_destroy(&lock);
+
+// Después de que todos los hilos terminen
+qsort(p, pp, sizeof(int), compare);
 
 printf("Hi ha %d primers\n",pp-1);
 printf("Darrer primer trobat %d\n",p[pp-1]);
 //for(i=0;i<pp;i++) printf("%d\n",p[i]);
+// int maxValue = 0;
+// for(i=0;i<pp;i++) {
+//   maxValue++;
+// }
+// printf("Num values: %d\n", maxValue);
+// for(i=0;i<pp;i++){
+//   assert(p[i] < p[i+1]);
+// }
+
 exit(0);
 }
 
