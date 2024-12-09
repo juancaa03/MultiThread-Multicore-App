@@ -2,7 +2,6 @@
 #include <stdio.h>
 #include <assert.h>
 #include <pthread.h>
-#include <stdatomic.h>
 
 #define N 100000000
 #define INI 1500
@@ -16,11 +15,16 @@ int numThreads;
 void *find_primes_in_range(void *arg)
 {
   int thread_id = *(int *)arg;
-  int range_size = (nn - INI + numThreads - 1) / numThreads;
-  int start = INI + thread_id * range_size;
-  int end = (thread_id == numThreads - 1) ? nn : start + range_size;
-
   int block_size = (N/10 + numThreads - 1) / numThreads;
+  int start;
+  if (thread_id == 0)
+    start = INI + thread_id * block_size;
+  else
+    start = thread_id * block_size;
+
+  int end = (thread_id == numThreads - 1) ? nn : start + block_size;
+
+  
   int newPPindex = thread_id * block_size;
   int local_pp = 0;
   for(int num = start;num<end;num+=2)
@@ -58,7 +62,6 @@ if (nn > N) assert("![*] Numero de datos demasiado grande -> Max 100M" == 0);
 numThreads = atoi(arg[2]);
 if (numThreads > MAX_THREADS || 256 % numThreads != 0 || numThreads % 2 != 0) assert("![*] Numero de threads demasiado grande -> Max 256" == 0);
 //assert(nn<=N);
-
 //pthread_mutex_init(&lock, NULL);
 
 printf("Tots els primers fins a %d\n",nn);
